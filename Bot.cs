@@ -1,20 +1,31 @@
-﻿using Telegram.Bot;
+﻿using Microsoft.Extensions.Hosting;
+using tbot.Controllers;
+using Telegram.Bot;
 using Telegram.Bot.Exceptions;
+using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
 namespace tbot;
 
-public class Bot
+public class Bot : BackgroundService
 {
     /// <summary>
     /// объект, отвеающий за отправку сообщений клиент  у
     /// </summary>
     private ITelegramBotClient _telegramClient;
 
-    public Bot(ITelegramBotClient telegramClient)
+    private DefaultMessageController _defaultMessageController;
+    private TextMessageController _textMessageController;
+
+    public Bot(
+        ITelegramBotClient telegramClient,
+        TextMessageController textMessageController,
+        DefaultMessageController defaultMessageController)
     {
         _telegramClient = telegramClient;
+        _defaultMessageController = defaultMessageController;
+        _textMessageController = textMessageController;
     }
 
     async Task HandleUpdateAsync(
@@ -34,9 +45,15 @@ public class Bot
         // Обрабатываем входящие сообщения из Telegram Bot API: https://core.telegram.org/bots/api#message
         if (update.Type == UpdateType.Message)
         {
-            await _telegramClient.SendTextMessageAsync(update.Message.Chat.Id, "Вы отправили сообщение",
-                cancellationToken: cancellationToken);
-            return;
+            switch (update.Message!.Type)
+            {
+                case MessageType.Text:
+                    await _textMessageController.Handle(update.Message, cancellationToken);
+                    return;
+                default:
+                    await _defaultMessageController.Handle(update.Message, cancellationToken);
+                    return;
+            }
         }
     }
 
@@ -60,5 +77,18 @@ public class Bot
         Thread.Sleep(10000);
 
         return Task.CompletedTask;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _telegramClient.StartReceiving(
+            HandleUpdateAsync,
+            HandleErrorAsync,
+            new ReceiverOptions()
+            {
+                AllowedUpdates = { }
+            }, // Здесь выбираем, какие обновления хотим получать. В данном случае разрешены все
+            cancellationToken: stoppingToken);
+        Console.WriteLine("Бот запущеннн");
     }
 }
