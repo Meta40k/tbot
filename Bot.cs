@@ -1,42 +1,64 @@
 ﻿using Telegram.Bot;
+using Telegram.Bot.Exceptions;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 namespace tbot;
 
 public class Bot
 {
     /// <summary>
-    /// объект, отвеающий за отправку сообщений клиенту
+    /// объект, отвеающий за отправку сообщений клиент  у
     /// </summary>
-    private TelegramBotClient _telegramClient;
+    private ITelegramBotClient _telegramClient;
 
-    public Bot(TelegramBotClient telegramClient)
+    public Bot(ITelegramBotClient telegramClient)
     {
         _telegramClient = telegramClient;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken cancellationToken)
+    async Task HandleUpdateAsync(
+        ITelegramBotClient botClient,
+        Update update,
+        CancellationToken cancellationToken
+    )
     {
-        _telegramClient.OnMessage += HandleMessage;
-        _telegramClient.OnMessage += HandleButtonClick;
+        //  Обрабатываем нажатия на кнопки  из Telegram Bot API: https://core.telegram.org/bots/api#callbackquery
+        if (update.Type == UpdateType.CallbackQuery)
+        {
+            await _telegramClient.SendTextMessageAsync(update.Message.Chat.Id, "Вы нажали кнопку",
+                cancellationToken: cancellationToken);
+            return;
+        }
 
-        Console.WriteLine("Bot started");
+        // Обрабатываем входящие сообщения из Telegram Bot API: https://core.telegram.org/bots/api#message
+        if (update.Type == UpdateType.Message)
+        {
+            await _telegramClient.SendTextMessageAsync(update.Message.Chat.Id, "Вы отправили сообщение",
+                cancellationToken: cancellationToken);
+            return;
+        }
     }
 
-    /// <summary>
-    /// Обработчик входящих тектовых сообщений  
-    /// </summary>
-    private async Task HandleMessage(object sender, MessageEventArgs e)
+    Task HandleErrorAsync(ITelegramBotClient botClient,
+        Exception exception,
+        CancellationToken cancellationToken)
     {
-        // Бот получил входящее сообщение пользователя
-        var messageText = e.Message.Text;
+        // Задаем сообщение об ошибке в зависимости от того, какая именно ошибка произошла
+        var errorMessage = exception switch
+        {
+            ApiRequestException apiRequestException
+                => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
+            _ => exception.ToString()
+        };
 
-        // Бот Отправляет ответ
-        _telegramClient.SendTextMessage(e.ChatId, "Ответ на сообщение пользователя")
+        // Выводим в консоль информацию об ошибке
+        Console.WriteLine(errorMessage);
+
+        // Задержка перед повторным подключением
+        Console.WriteLine("Ожидаем 10 секунд перед повторным подключением.");
+        Thread.Sleep(10000);
+
+        return Task.CompletedTask;
     }
-
-    /// <summary>
-    /// Обработчик нажатий на кнопки
-    /// </summary>
-    private async Task HandleButtonClick(object sender, MessageEventArgs e)
-    { }
 }
