@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using tbot.Models;
 
-namespace tbot.Sevices;
+namespace tbot.Services;
 
 public class MemoryStorage : IStorage
 {

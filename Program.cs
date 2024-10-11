@@ -1,7 +1,9 @@
 ﻿using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using tbot.Configuration;
 using tbot.Controllers;
+using tbot.Services;
 using Telegram.Bot;
 
 namespace tbot;
@@ -26,13 +28,24 @@ public class Program
 
     static void ConfigureServices(IServiceCollection services)
     {
+        AppSettings appSettings = BuildAppSettings();
+        services.AddSingleton(BuildAppSettings());
+        
+        services.AddSingleton<IStorage, MemoryStorage>();
+        
         services.AddTransient<DefaultMessageController>();
         services.AddTransient<TextMessageController>();
-
-        // Регистрируем объект TelegramBotClient c токеном подключения
-        services.AddSingleton<ITelegramBotClient>(provider => new TelegramBotClient("8114718234:AAGmj38qL-1sYJpCdw-Ip2dul8zRpnS63n4"));
         
         // Регистрируем постоянно активный сервис бота
         services.AddHostedService<Bot>();
+    }
+    
+    
+    static AppSettings BuildAppSettings()
+    {
+        return new AppSettings()
+        {
+            BotToken = "8114718234:AAGmj38qL-1sYJpCdw-Ip2dul8zRpnS63n4"
+        };
     }
 }

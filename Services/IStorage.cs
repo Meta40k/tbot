@@ -1,6 +1,6 @@
 ﻿using tbot.Models;
 
-namespace tbot.Sevices;
+namespace tbot.Services;
 
 public interface IStorage
 {
